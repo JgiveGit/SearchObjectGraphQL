@@ -410,6 +410,65 @@ describe SearchObject::Plugin::Graphql do
       )
     end
 
+    it 'accepts deprecation_reason' do
+      schema = define_search_class_and_return_schema do
+        type PostType, null: true
+
+        option('option', type: String, deprecation_reason: 'Not in use anymore')
+      end
+
+
+      result = schema.execute <<-SQL
+        {
+          __type(name: "Query") {
+            name
+            fields {
+              args(includeDeprecated: false) {
+                name
+              }
+            }
+          }
+        }
+      SQL
+
+      expect(result.to_h).to eq(
+        'data' => {
+          '__type' => {
+            'name' => 'Query',
+            'fields' => [{
+              'args' => []
+            }]
+          }
+        }
+      )
+
+      result = schema.execute <<-SQL
+        {
+          __type(name: "Query") {
+            name
+            fields {
+              args(includeDeprecated: true) {
+                name
+              }
+            }
+          }
+        }
+      SQL
+
+      expect(result.to_h).to eq(
+        'data' => {
+          '__type' => {
+            'name' => 'Query',
+            'fields' => [{
+              'args' => [{
+                'name' => 'option',
+              }]
+            }]
+          }
+        }
+      )
+    end
+
     it 'raises error when no type is given' do
       expect { define_search_class { option :name } }.to raise_error described_class::MissingTypeDefinitionError
     end
